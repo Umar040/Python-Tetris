@@ -1,13 +1,15 @@
 import pygame
 import os
 
+#Ghost squares that return squares that exact position then make equal to ghost list then drop then udpate every click
+
 class Square:
     #class variables
     #eg. size = 30
     #constructor
-    def __init__(self,size):
-        self.x = 600
-        self.y = 72
+    def __init__(self,size,x=600,y=72):
+        self.x = x
+        self.y = y
         self.size = size
         self.square = pygame.Rect(self.x,self.y,self.size,self.size)
         self.colour = "white"
@@ -21,6 +23,51 @@ class Square:
     #Rect method lets class act like a rect for colliderect
     def rect(self):
         return self.square
+
+class TPiece:
+    def __init__(self,size):
+        self.size = size
+        self.squares = [Square(self.size),Square(self.size),Square(self.size),Square(self.size)]
+        self.squares[1].move(-self.size-1,0)#left
+        self.squares[2].move(self.size+1,0)#right
+        self.squares[3].move(0,self.size+1)#down
+        self.rotateNum = 1
+        for square in self.squares:
+            square.colour = (255, 255, 0)
+
+    def move(self,x,y):
+        for square in self.squares:
+            square.move(x,y)
+            
+    def unrotate(self):
+        if self.rotateNum == 1:
+            self.squares[1],self.squares[2],self.squares[3] = self.squares[3],self.squares[1],self.squares[2]
+            self.rotateNum=4
+            self.squares[2].move(self.size+1,-self.size-1)
+        elif self.rotateNum == 2:
+            self.rotateNum-=1
+            self.squares[2].move(self.size+1,self.size+1)
+        elif self.rotateNum == 3:
+            self.rotateNum-=1
+            self.squares[3].move(-self.size-1,self.size+1)
+        else:
+            self.rotateNum-=1
+            self.squares[1].move(-self.size-1,-self.size-1)
+
+    def rotate(self):
+        if self.rotateNum == 1:
+            self.squares[2].move(-self.size-1,-self.size-1)
+            self.rotateNum+=1
+        elif self.rotateNum == 2:
+            self.squares[3].move(self.size+1,-self.size-1)
+            self.rotateNum+=1
+        elif self.rotateNum == 3:
+            self.squares[1].move(self.size+1,self.size+1)
+            self.rotateNum+=1
+        else:
+            self.squares[2].move(-self.size-1,+self.size+1)
+            self.rotateNum=1
+            self.squares[1],self.squares[2],self.squares[3] = self.squares[2],self.squares[3],self.squares[1]
 
 class Game:
     def __init__(self,screen,size):
@@ -39,16 +86,15 @@ class Game:
                       [0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0]]
         self.size=size
         self.currentSquare = Square(size)
+        self.currentPiece = TPiece(size)
         self.makePiece("T")
+        self.ghost=[]
         self.frameCount = 0
         self.running = True
 
     def makePiece(self, piece):
         if piece == "T":
-            self.currentSquares = [Square(self.size),Square(self.size),Square(self.size),Square(self.size)]
-            self.currentSquares[1].move(-self.size-1,0)
-            self.currentSquares[2].move(self.size+1,0)
-            self.currentSquares[3].move(0,self.size+1)
+            self.currentPiece = TPiece(self.size)
             
 
     def multiEventHandler(self):
@@ -73,6 +119,48 @@ class Game:
                     if collision:
                         for square in self.currentSquares:
                             square.move(+self.size+1,0)
+
+    def pieceEventHandler(self):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.running = False
+            if event.type == pygame.KEYDOWN:
+                collision = False
+                if event.key == pygame.K_RIGHT:
+                    for square in self.currentPiece.squares: #Instead of piece move then running another loop for collision both together is more efficient
+                        square.move(self.size+1,0)
+                        if square.x > 600 + (self.size+1)*5 + self.size or square.rect().collidelistall(self.squares):
+                            collision = True
+                    if collision:
+                        self.currentPiece.move(-self.size-1,0)
+                elif event.key == pygame.K_LEFT:
+                    for square in self.currentPiece.squares:
+                        square.move(-self.size-1,0)
+                        if square.x < 600 - (self.size+1)*4 or square.rect().collidelistall(self.squares):
+                            collision = True
+                    if collision:
+                        self.currentPiece.move(+self.size+1,0)
+                elif event.key == pygame.K_UP:
+                    self.currentPiece.rotate()
+                    undo = False
+                    for square in self.currentPiece.squares:
+                        if square.rect().collidelistall(self.squares) or square.y<72 or square.x<476 or square.x>756:
+                            undo = True
+                    if undo:
+                        self.currentPiece.unrotate()
+                elif event.key == pygame.K_DOWN:
+                    finished = False
+                    collide = False
+                    while not finished:
+                        for square in self.currentPiece.squares:
+                            square.move(0,self.size+1)
+                            if square.rect().collidelistall(self.squares) or square.y > 661:
+                                finished = True
+                                collide = True
+                            elif square.y > 660:
+                                finished = True
+                    if collide:
+                        self.currentPiece.move(0,-self.size-1)
                         
                     
     def eventHandler(self):
@@ -117,6 +205,16 @@ class Game:
             pygame.draw.rect(self.screen, square.colour, square.rect())
         pygame.display.flip()
 
+    def pieceDraw(self):
+        self.screen.fill("black")
+        borderRect = pygame.Rect(474,70,313,623)
+        pygame.draw.rect(self.screen,(255,255,255),borderRect,1)
+        for square in self.squares:
+            pygame.draw.rect(self.screen, square.colour, square.rect())
+        for square in self.currentPiece.squares:
+            pygame.draw.rect(self.screen, square.colour, square.rect())
+        pygame.display.flip()
+        
     #Original plan was to add all square y to a dictionary and and any duplicate add them up then when reaching 10 remove all y in that row then move rest down but now going to use an
     #array to track the game board
     def clearLine(self):
@@ -142,6 +240,29 @@ class Game:
             for square in self.squares:
                 if square.y < (row*31)+72:
                     square.move(0,31)
+
+    def multiClearLine(self):
+        rowToDelete = []
+        squaresToRemove = []
+        for square in self.currentPiece.squares:
+            self.board[int((square.y - 72)/31)][int((square.x-476)/31)]=1
+        for row in range(len(self.board)):
+            if all(column==1 for column in self.board[row]):
+                rowToDelete.append(row)
+        for row in rowToDelete:
+            for square in self.squares:
+                if square.y == (row*31)+72:
+                    squaresToRemove.append(square)
+        for square in squaresToRemove:
+            self.squares.remove(square)
+        for row in rowToDelete:
+            tempRow = [0,0,0,0,0,0,0,0,0,0]
+            for row2 in range(row+1):
+                self.board[row2],tempRow = tempRow,self.board[row2]
+            for square in self.squares:
+                if square.y < (row*31)+72:
+                    square.move(0,31)
+        
              
     def loop(self):
         self.eventHandler()
@@ -167,22 +288,59 @@ class Game:
         self.frameCount+=1
         if self.frameCount == 30:
             add = False
+            collision = False
             for square in self.currentSquares:
                 if square.y > 660:
                     add = True
             if add:
                 self.squares.extend(self.currentSquares)
+                self.multiClearLine()
                 self.makePiece("T")
             else:
                 for square in self.currentSquares:
                     square.move(0,self.size+1)
+                    if square.rect().collidelistall(self.squares):
+                        collision=True
+            if collision:
+                for square in self.currentSquares:
+                    square.move(0,-self.size-1)
+                self.squares.extend(self.currentSquares)
+                self.multiClearLine()
+                self.makePiece("T")
             self.frameCount=0
+
+    def pieceLoop(self):
+        self.pieceEventHandler()
+        self.pieceDraw()
+        self.frameCount+=1
+        if self.frameCount == 30:
+            add = False
+            collision = False
+            for square in self.currentPiece.squares:
+                if square.y > 660:
+                    add = True
+            if add:
+                self.squares.extend(self.currentPiece.squares)
+                self.multiClearLine()
+                self.makePiece("T")
+            else:
+                for square in self.currentPiece.squares:
+                    square.move(0,self.size+1)
+                    if square.rect().collidelistall(self.squares):
+                        collision=True
+            if collision:
+                self.currentPiece.move(0,-self.size-1)
+                self.squares.extend(self.currentPiece.squares)
+                self.multiClearLine()
+                self.makePiece("T")
+            self.frameCount=0
+        
 pygame.init()
 screen = pygame.display.set_mode((1280,720))
 clock = pygame.time.Clock()
 game = Game(screen,30)
 while game.running:
-    game.multiLoop()
+    game.pieceLoop()
     clock.tick(60)
     
 pygame.quit()
