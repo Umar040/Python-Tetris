@@ -21,6 +21,7 @@ class Square:
         self.square = self.square.move(x,y)
 
     def ghost(self):
+        #Returns copy of the square
         return pygame.Rect(self.x,self.y,self.size,self.size)
 
     #Rect method lets class act like a rect for colliderect
@@ -28,6 +29,8 @@ class Square:
         return self.square
 
 #------------------------------------------Tetris Pieces----------------------------------------------------------
+#Each piece has a rotate/unrotate method and a move function. Each piece has 4 squares with the a focal square 0 that the other squares move around.
+#Note: Each move function is the exact same for each piece so could make a Piece Class that has move predefined to reduce code redundancy
 class TPiece:
     def __init__(self,size):
         self.size = size
@@ -37,11 +40,11 @@ class TPiece:
         self.squares[2].move(self.size+1,0)#Right
         self.squares[3].move(0,self.size+1)#Down
         self.rotateNum = 1
-
+    #For each square in the piece call that squares move function and move it
     def move(self,x,y):
         for square in self.squares:
             square.move(x,y)
-
+    #Rotate just moves the squares around the focus square (square[0]) to create clockwise rotation
     def rotate(self):
         if self.rotateNum == 1:
             self.squares[2].move(-self.size-1,-self.size-1)
@@ -56,7 +59,7 @@ class TPiece:
             self.squares[2].move(-self.size-1,+self.size+1)
             self.rotateNum=1
             self.squares[1],self.squares[2],self.squares[3] = self.squares[2],self.squares[3],self.squares[1]
-
+    #Rotates the shape in the opposite direction (Anti-Clockwise)
     def unrotate(self):
         if self.rotateNum == 1:
             self.squares[1],self.squares[2],self.squares[3] = self.squares[3],self.squares[1],self.squares[2]
@@ -318,6 +321,7 @@ class JPiece:
 ################################################################################################################################
 class Game:
     def __init__(self,screen,size):
+        #Initalise Class Global Variables
         self.screen = screen
         self.squares = []
         self.dropped = False
@@ -336,6 +340,7 @@ class Game:
         self.newPiece = True
         self.framesToDrop = 30
 
+    #Creates a random piece from the piecesLeft list and then resets the list when it is empty
     def makePiece(self):
         if self.next == None:
             piece = random.choice(self.piecesLeft)
@@ -353,7 +358,8 @@ class Game:
         self.nextPiece.move(275,50)
         self.makeGhost()
         self.newPiece = True
-        
+
+    #Retrieve the class for the given piece p
     def getPiece(self,p):
         if p == "T":
             return TPiece(self.size)
@@ -370,6 +376,9 @@ class Game:
         elif p == "J":
             return JPiece(self.size)
 
+    #Holds the piece by storing it's name in held then creates a new piece but if it already has something held
+    #It swaps the held and new current piece and makes the current piece be a new instance of that piece i.e
+    #Held L Piece and Current Piece J Piece swap so held piece now is J piece and the new current piece is L piece
     def holdPiece(self):
         if self.held == None:
             self.held = self.currentPiece.name
@@ -380,6 +389,7 @@ class Game:
         self.heldPiece = self.getPiece(self.held)
         self.heldPiece.move(-275,50)
 
+    #Check if the game has ended by ckecking the two middle blocks and block to the right of them then displays game over on a red background for 2 seconds before going through the termination steps
     def killCheck(self):
         if self.board[0][5] == 1 or self.board[0][4] == 1 or self.board[0][6] == 1:
             self.screen.fill("red")
@@ -389,6 +399,7 @@ class Game:
             time.sleep(2)
             self.running = False
 
+    #Handles all the controls for the game and the piece logic (For example keep piece inbounds)
     def pieceEventHandler(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -399,7 +410,7 @@ class Game:
             elif event.type == pygame.KEYDOWN:
                 collision = False
                 if event.key == pygame.K_RIGHT:
-                    for square in self.currentPiece.squares: #Instead of piece move then running another loop for collision both together is more efficient
+                    for square in self.currentPiece.squares: #Instead of piece.move first and then running another loop for collision both together is more efficient
                         square.move(self.size+1,0)
                         if square.x > 600 + (self.size+1)*5 + self.size or square.rect().collidelistall(self.squares):
                             collision = True
@@ -453,7 +464,8 @@ class Game:
                 elif event.key == pygame.K_ESCAPE:
                     self.running = False
 
-    def pieceDraw(self):
+    #Draws everything for the game (Controls, Held Piece, Next Piece and the current board state)
+    def drawGame(self):
         self.screen.fill("black")
         borderRect = pygame.Rect(474,70,313,623)
         pygame.draw.rect(self.screen,(255,255,255),borderRect,1)
@@ -478,6 +490,7 @@ class Game:
             pygame.draw.rect(self.screen, square.colour, square.rect())
         pygame.display.flip()
 
+    #Checks to see if a line has been cleared after a piece has been placed then removes that line and drop everything above it down by one
     def multiClearLine(self):
         rowToDelete = []
         squaresToRemove = []
@@ -500,6 +513,7 @@ class Game:
                 if square.y < (row*31)+72:
                     square.move(0,31)
 
+    #Creates a ghost block with the same rotation as the current block where the block would land if it was instantly dropped to help guide the player
     def makeGhost(self):
         self.ghost=[]
         for square in self.currentPiece.squares:
@@ -517,10 +531,11 @@ class Game:
         if collide:
             for rectNum in range(len(self.ghost)):
                 self.ghost[rectNum] = self.ghost[rectNum].move(0,-self.size-1)
-        
+
+    #The game loop that calls everything that needs to be called before a 'frame' has passed
     def pieceLoop(self):
         self.pieceEventHandler()
-        self.pieceDraw()
+        self.drawGame()
         self.frameCount+=1
         if self.frameCount >= self.framesToDrop or self.dropped:
             add = False
@@ -544,253 +559,18 @@ class Game:
                 self.makePiece()
             self.killCheck()
             self.frameCount=0
-            self.dropped = False
-        if self.newPiece:
-            self.AI()
-
-################################################################################################################################
-#------------------------------------------------AI Logic----------------------------------------------------------------------#
-################################################################################################################################
-
-    #Board is [y][x]
-    #Problem cuz board no care about height need to fix for board where pieces are near top
-    def AI(self):
-        #Generates all O boards fine
-        if self.currentPiece.name == "O":
-            y = 0
-            x = 0
-            possibleBoards = []
-            allBoards = False
-            while allBoards == False:
-                copyBoard = [row[:] for row in self.board] #List comprehension needed for copying a list of lists as [:] does shallow copy therefore effecting original
-                if x>8:
-                    allBoards = True
-                else:
-                    finished = False
-                    while not finished:
-                        if copyBoard[y+2][x] == 1 or copyBoard[y+2][x+1] == 1:
-                            finished = True
-                        elif y>16:
-                            y+=1
-                            finished = True
-                        else:
-                            y+=1
-                    copyBoard[y][x],copyBoard[y][x+1],copyBoard[y+1][x],copyBoard[y+1][x+1] = 1,1,1,1
-                    possibleBoards.append(copyBoard)
-                    y=0
-                    x+=1
-            self.newPiece = False
-        #Generates all I boards fine
-        elif self.currentPiece.name == "I":
-            yv = 1
-            xv = 0
-            yh = 0
-            xh = 1
-            possibleBoards = []
-            copyBoard = [row[:] for row in self.board]
-            allBoards = False
-            while allBoards == False:
-                if xv>9 and xh>7:
-                    allBoards = True
-                #Condition 1 (Vertical)
-                if xv<=9: #If Y is not past point where vertical block can be placed
-                    finished = False
-                    while not finished: #While still dropping
-                        if copyBoard[yv+3][xv] == 1: #Check if block below
-                            finished = True
-                        elif yv>15: #If 1 away from bottom
-                            yv+=1 #Since already checked if block is there just add 1 and finish
-                            finished = True
-                        else:
-                            yv+=1 #Otherwise keep dropping
-                    copyBoard[yv][xv],copyBoard[yv-1][xv],copyBoard[yv+1][xv],copyBoard[yv+2][xv] = 1,1,1,1 #Make shape in 1's
-                    possibleBoards.append(copyBoard)#Add to boards
-                    copyBoard = [row[:] for row in self.board] #Make fresh new board using self.board
-                    yv=1#Reset Y
-                    xv+=1#Increment X
-                #Condition 2 (Horizontal)
-                if xh<=7:
-                    finished = False
-                    while not finished:
-                        if copyBoard[yh+1][xh] == 1 or copyBoard[yh+1][xh+1] == 1 or copyBoard[yh+1][xh-1] == 1 or copyBoard[yh+1][xh+2] == 1:
-                            finished = True
-                        elif yh>17:
-                            yh+=1
-                            finished = True
-                        else:
-                            yh+=1
-                    copyBoard[yh][xh],copyBoard[yh][xh-1],copyBoard[yh][xh+1],copyBoard[yh][xh+2] = 1,1,1,1
-                    possibleBoards.append(copyBoard)
-                    copyBoard = [row[:] for row in self.board]
-                    yh=0
-                    xh+=1
-            self.newPiece = False
-        #Generates all L boards fine
-        elif self.currentPiece.name == "T":
-            lx = 1
-            ly = 1
-            ux = 1
-            uy = 1
-            rx = 0
-            ry = 1
-            dx = 1
-            dy = 0
-            possibleBoards = []
-            copyBoard = [row[:] for row in self.board]
-            allBoards = False
-            while allBoards == False:
-                if lx>9 and ux>8 and rx>8 and dx>8:
-                    allBoards = True
-                #Condition 1 (Left)
-                if lx<=9:
-                    finished = False
-                    while not finished:
-                        if copyBoard[ly+2][lx] == 1 or copyBoard[ly+1][lx-1] == 1:
-                            finished = True
-                        elif ly>16:
-                            ly+=1
-                            finished = True
-                        else:
-                            ly+=1
-                    copyBoard[ly][lx],copyBoard[ly][lx-1],copyBoard[ly+1][lx],copyBoard[ly-1][lx] = 1,1,1,1
-                    possibleBoards.append(copyBoard)
-                    copyBoard = [row[:] for row in self.board]
-                    ly=1
-                    lx+=1
-                if ux<=8:
-                    finished = False
-                    while not finished:
-                        if copyBoard[uy+1][ux] == 1 or copyBoard[uy+1][ux-1] == 1 or copyBoard[uy+1][ux+1] == 1:
-                            finished = True
-                        elif uy>17:
-                            uy+=1
-                            finished = True
-                        else:
-                            uy+=1
-                    copyBoard[uy][ux],copyBoard[uy][ux-1],copyBoard[uy][ux+1],copyBoard[uy-1][ux] = 1,1,1,1
-                    possibleBoards.append(copyBoard)
-                    copyBoard = [row[:] for row in self.board]
-                    uy=1
-                    ux+=1
-                if rx<=8:
-                    finished = False
-                    while not finished:
-                        if copyBoard[ry+2][rx] == 1 or copyBoard[ry+1][rx+1] == 1:
-                            finished = True
-                        elif ry>16:
-                            ry+=1
-                            finished = True
-                        else:
-                            ry+=1
-                    copyBoard[ry][rx],copyBoard[ry-1][rx],copyBoard[ry+1][rx],copyBoard[ry][rx+1] = 1,1,1,1
-                    possibleBoards.append(copyBoard)
-                    copyBoard = [row[:] for row in self.board]
-                    ry=1
-                    rx+=1
-                if dx<=8:
-                    finished = False
-                    while not finished:
-                        if copyBoard[dy+1][dx-1] == 1 or copyBoard[dy+1][dx+1] == 1 or copyBoard[dy+2][dx] == 1:
-                            finished = True
-                        elif dy>16:
-                            dy+=1
-                            finished = True
-                        else:
-                            dy+=1
-                    copyBoard[dy][dx],copyBoard[dy][dx-1],copyBoard[dy][dx+1],copyBoard[dy+1][dx] = 1,1,1,1
-                    possibleBoards.append(copyBoard)
-                    copyBoard = [row[:] for row in self.board]
-                    dy=1
-                    dx+=1
-            self.newPiece=False
-        #Generates all L boards fine
-        elif self.currentPiece.name == "L" or True:
-            rx=0
-            ry=1
-            dx=1
-            dy=0
-            lx=1
-            ly=1
-            ux=1
-            uy=1
-            possibleBoards = []
-            copyBoard = [row[:] for row in self.board]
-            allBoards = False
-            while allBoards == False:
-                if lx>9 and dx>8 and rx>8 and ux>8:
-                    allBoards = True
-                if lx<=9:
-                    finished = False
-                    while not finished:
-                        if copyBoard[ly][lx-1] == 1 or copyBoard[ly+2][lx] == 1:
-                            finished = True
-                        elif ly>16:
-                            ly+=1
-                            finished = True
-                        else:
-                            ly+=1
-                    copyBoard[ly][lx],copyBoard[ly+1][lx],copyBoard[ly-1][lx],copyBoard[ly-1][lx-1] = 1,1,1,1
-                    possibleBoards.append(copyBoard)
-                    copyBoard = [row[:] for row in self.board]
-                    ly=1
-                    lx+=1
-                if dx<=8:
-                    finished = False
-                    while not finished:
-                        if copyBoard[dy+1][dx] == 1 or copyBoard[dy+1][dx+1] == 1 or copyBoard[dy+2][dx-1] == 1:
-                            finished = True
-                        elif dy>16:
-                            dy+=1
-                            finished = True
-                        else:
-                            dy+=1
-                    copyBoard[dy][dx],copyBoard[dy][dx+1],copyBoard[dy][dx-1],copyBoard[dy+1][dx-1] = 1,1,1,1
-                    possibleBoards.append(copyBoard)
-                    copyBoard = [row[:] for row in self.board]
-                    dy=0
-                    dx+=1
-                if ux<=8:
-                    finished = False
-                    while not finished:
-                        if copyBoard[uy+1][ux] == 1 or copyBoard[uy+1][ux+1] == 1 or copyBoard[uy+1][ux-1] == 1:
-                            finished = True
-                        elif uy>17:
-                            uy+=1
-                            finished = True
-                        else:
-                            uy+=1
-                    copyBoard[uy][ux],copyBoard[uy][ux-1],copyBoard[uy][ux+1],copyBoard[uy-1][ux+1] = 1,1,1,1
-                    possibleBoards.append(copyBoard)
-                    copyBoard = [row[:] for row in self.board]
-                    uy=1
-                    ux+=1
-                if rx<=8:#8 is 1 block away from right and 9 is touchig right side
-                    finished = False
-                    while not finished:
-                        if copyBoard[ry+2][rx] == 1 or copyBoard[ry+2][rx+1] == 1: #For x + is right - is left | for y + is down - is up
-                            finished = True
-                        elif ry>16: #16 means 1 before end 17 means touch bottom
-                            ry+=1
-                            finished = True
-                        else:
-                            ry+=1
-                    copyBoard[ry][rx],copyBoard[ry-1][rx],copyBoard[ry+1][rx],copyBoard[ry+1][rx+1] = 1,1,1,1
-                    possibleBoards.append(copyBoard)
-                    copyBoard = [row[:] for row in self.board]
-                    ry=1
-                    rx+=1
-            self.newPiece = False
-                    
-                    
+            self.dropped = False                    
 #------------------------------------------------------------------Game Loop------------------------------------------------------
+
+#Initalise pygame and pygame.font
 pygame.init()
 pygame.font.init()
-screen = pygame.display.set_mode((1280,720))
-clock = pygame.time.Clock()
-game = Game(screen,30)
+screen = pygame.display.set_mode((1280,720)) #Create the screen for the game in 1280 by 720
+clock = pygame.time.Clock() #Create a pygame clock object to limit the code run speed
+game = Game(screen,30) #Create the game class with block size 30
+#Game loop while game.running is True
 while game.running:
-    game.pieceLoop()
-    clock.tick(60)
-print("Game Over")
-    
-pygame.quit()
+    game.pieceLoop() #Call the game loop
+    clock.tick(60) #Limit the code to only run 60 times per second (60fps)
+print("Game Over") #Once finished print game over to the shell console
+pygame.quit() #Quit the pygame window
