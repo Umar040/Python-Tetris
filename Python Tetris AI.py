@@ -2,8 +2,6 @@ import pygame
 import time
 import random
 
-
-
 #------------------------------------------Tetris Pieces----------------------------------------------------------
 class TPiece:
     def __init__(self,size):
@@ -165,6 +163,77 @@ class Game:
     #Control Loop Right to advance by 1 loop
     def controlledLoop(self):
         self.controls()
+
+    #Places the best move given
+    def AIPlace(self):
+        if self.alt:
+            self.squares = []
+            for y in range(len(self.altBestBoard)):
+                for x in range(len(self.altBestBoard[y])):
+                    if self.altBestBoard[y][x] == 1:
+                        self.squares.append(pygame.Rect(476+31*x,72+31*y,self.size,self.size))
+        else:
+            self.squares=[]
+            for y in range(len(self.bestBoard)):
+                for x in range(len(self.bestBoard[y])):
+                    if self.bestBoard[y][x] == 1:
+                        self.squares.append(pygame.Rect(476+31*x,72+31*y,self.size,self.size))
+
+    #Draws everything needed
+    def AIDraw(self):
+        self.screen.fill("black")
+        borderRect = pygame.Rect(474,70,313,623)
+        pygame.draw.rect(self.screen,(255,255,255),borderRect,1)
+        linesClearedText = self.font.render("Lines Cleared: "+str(self.linesCleared),True, (255,255,255)) #Display lines cleared
+        self.screen.blit(linesClearedText,(50,50))
+        for x in range(len(self.squares)): #Draw all squares
+            pygame.draw.rect(self.screen, (100,100,100), self.squares[x])
+        for square in self.currentPieceSquares: #Draw the current piece squares in red
+            pygame.draw.rect(self.screen, (255,0,0), square)
+        pygame.display.flip()
+
+    #Check for clearlines and gameover
+    def AICheck(self):
+        rowToDelete = []
+        squaresToRemove = []
+        redSquaresToRemove = []
+        if self.alt:
+            for row in range(len(self.altBestBoard)):
+                if all(self.altBestBoard[row]): #check if all items in row are 1(True)
+                    self.cleared = True
+                    self.linesCleared+=1
+                    rowToDelete.append(row)
+            for row in rowToDelete:
+                tempRow = [0,0,0,0,0,0,0,0,0,0]
+                for row2 in range(row+1):
+                    self.altBestBoard[row2],tempRow = tempRow,self.altBestBoard[row2]
+            if 1 in self.altBestBoard[0]:
+                self.AIDraw()
+                time.sleep(2)
+                gameOverText = self.font.render("Game Over",True, (0,0,0))
+                self.screen.blit(gameOverText,(520,350))
+                pygame.display.flip()
+                time.sleep(2)
+                self.running = False
+        else:
+            for row in range(len(self.bestBoard)):
+                #if all(column==1 for column in self.board[row]):  <-- Works but creates another loop so slower but better code readability
+                if all(self.bestBoard[row]): #check if all items in row are 1(True)
+                    self.cleared = True
+                    self.linesCleared+=1
+                    rowToDelete.append(row)
+            for row in rowToDelete:
+                tempRow = [0,0,0,0,0,0,0,0,0,0]
+                for row2 in range(row+1):
+                    self.bestBoard[row2],tempRow = tempRow,self.bestBoard[row2]
+            if 1 in self.bestBoard[0]:
+                self.AIDraw()
+                time.sleep(2)
+                gameOverText = self.font.render("Game Over",True, (0,0,0))
+                self.screen.blit(gameOverText,(520,350))
+                pygame.display.flip()
+                time.sleep(2)
+                self.running = False
 
     #Automatic Loop
     def AILoop(self):
@@ -690,78 +759,6 @@ class Game:
                     self.bestBoard = board
                     self.bestBoardCurrentMove = currentMove[boardNum]
                     self.currentMaxScore = maxScore       
-
-    #Places the best move given
-    def AIPlace(self):
-        if self.alt:
-            self.squares = []
-            for y in range(len(self.altBestBoard)):
-                for x in range(len(self.altBestBoard[y])):
-                    if self.altBestBoard[y][x] == 1:
-                        self.squares.append(pygame.Rect(476+31*x,72+31*y,self.size,self.size))
-        else:
-            self.squares=[]
-            for y in range(len(self.bestBoard)):
-                for x in range(len(self.bestBoard[y])):
-                    if self.bestBoard[y][x] == 1:
-                        self.squares.append(pygame.Rect(476+31*x,72+31*y,self.size,self.size))
-
-    #Draws everything needed
-    def AIDraw(self):
-        self.screen.fill("black")
-        borderRect = pygame.Rect(474,70,313,623)
-        pygame.draw.rect(self.screen,(255,255,255),borderRect,1)
-        linesClearedText = self.font.render("Lines Cleared: "+str(self.linesCleared),True, (255,255,255)) #Display lines cleared
-        self.screen.blit(linesClearedText,(50,50))
-        for x in range(len(self.squares)): #Draw all squares
-            pygame.draw.rect(self.screen, (100,100,100), self.squares[x])
-        for square in self.currentPieceSquares: #Draw the current piece squares in red
-            pygame.draw.rect(self.screen, (255,0,0), square)
-        pygame.display.flip()
-
-    #Check for clearlines and gameover
-    def AICheck(self):
-        rowToDelete = []
-        squaresToRemove = []
-        redSquaresToRemove = []
-        if self.alt:
-            for row in range(len(self.altBestBoard)):
-                if all(self.altBestBoard[row]): #check if all items in row are 1(True)
-                    self.cleared = True
-                    self.linesCleared+=1
-                    rowToDelete.append(row)
-            for row in rowToDelete:
-                tempRow = [0,0,0,0,0,0,0,0,0,0]
-                for row2 in range(row+1):
-                    self.altBestBoard[row2],tempRow = tempRow,self.altBestBoard[row2]
-            if 1 in self.altBestBoard[0]:
-                self.AIDraw()
-                time.sleep(2)
-                gameOverText = self.font.render("Game Over",True, (0,0,0))
-                self.screen.blit(gameOverText,(520,350))
-                pygame.display.flip()
-                time.sleep(2)
-                self.running = False
-        else:
-            for row in range(len(self.bestBoard)):
-                #if all(column==1 for column in self.board[row]):  <-- Works but creates another loop so slower but better code readability
-                if all(self.bestBoard[row]): #check if all items in row are 1(True)
-                    self.cleared = True
-                    self.linesCleared+=1
-                    rowToDelete.append(row)
-            for row in rowToDelete:
-                tempRow = [0,0,0,0,0,0,0,0,0,0]
-                for row2 in range(row+1):
-                    self.bestBoard[row2],tempRow = tempRow,self.bestBoard[row2]
-            if 1 in self.bestBoard[0]:
-                self.AIDraw()
-                time.sleep(2)
-                gameOverText = self.font.render("Game Over",True, (0,0,0))
-                self.screen.blit(gameOverText,(520,350))
-                pygame.display.flip()
-                time.sleep(2)
-                self.running = False
-            
             
 #------------------------------------------------------------------Game Loop------------------------------------------------------
 pygame.init()
