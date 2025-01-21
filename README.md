@@ -16,4 +16,5 @@ Genetic Algorithm was implement and uploaded which simulates the game without vi
 
 The best from testing a 100 population size for 20 generations for 1 minute maximum time was
 [4.95,7.4,1,1,7.5] (Rounded)
+
 When testing these values back into the visual AI the game ran for 20,000 lines without dying which is where I stopped.
